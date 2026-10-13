@@ -8,6 +8,19 @@ Este projeto atende um e-commerce que cresceu rápido e passou a processar muito
 
 A empresa coleta o NPS só no fim da jornada de compra, então descobre a insatisfação depois que o problema já aconteceu, sem chance de agir antes. A pergunta central: quais fatores operacionais influenciam a satisfação do cliente, e como a empresa pode agir antes da pesquisa de NPS?
 
+## Principais resultados
+
+- NPS da empresa: **-74,1** (80% detratores, 14% passivos, 6% promotores).
+- Os três fatores que mais pesam na nota, nesta ordem: **atraso na entrega** (correlação -0,60), **número de reclamações** (-0,50) e **contatos com o atendimento** (-0,35).
+- O tempo total de entrega não muda a nota (correlação 0,00). O que pesa é atrasar em relação ao prometido, não a duração da entrega em si.
+- Ponto de ruptura: a cada dia de atraso, a chance de o pedido ser de um detrator sobe rápido. De 45,1% sem atraso para 83,1% com 2 dias de atraso e 100% a partir de 5 dias.
+- Pricing (valor do pedido, desconto, frete) e perfil do cliente (idade, tempo de casa, região) não têm relação com a nota.
+
+| Modelo | Pergunta que responde | Resultado no teste |
+|---|---|---|
+| Regressão linear | Qual a nota exata de NPS? | R² = 0,550, MAE = 1,34 |
+| Regressão logística | Este pedido vira um detrator? | ROC-AUC = 0,882, recall = 0,941 |
+
 ## Definição da target
 
 **Qual variável representa a satisfação do cliente?**
@@ -39,24 +52,23 @@ O projeto segue o fluxo CRISP-DM, conforme o roteiro das aulas da Fase 1.
 
 ### 1. Exploração dos dados
 
-[`notebooks/01_exploracao_dados.ipynb`](notebooks/01_exploracao_dados.ipynb) tem 13 seções: tamanho e tipos da base, valores ausentes e duplicados, resumo estatístico, distribuição e cálculo do NPS, outliers, variáveis de entrega e atendimento, NPS por região, coerência entre colunas, correlações com o NPS, tempo real de entrega, ponto de ruptura, pricing e perfil do cliente, e resumo de decisões.
+[`notebooks/01_exploracao_dados.ipynb`](notebooks/01_exploracao_dados.ipynb) tem 13 seções: tamanho e tipos da base, o que a base não conta, valores ausentes e duplicados, resumo estatístico, distribuição e cálculo do NPS, outliers, variáveis de entrega e atendimento, NPS por região (com teste ANOVA), coerência entre colunas, correlações com o NPS, tempo real de entrega, ponto de ruptura, pricing e perfil do cliente, e resumo de decisões.
 
-Principais decisões e achados:
+Decisões que sustentam os resultados acima:
 
-- NPS da empresa: -74,1 (2.001 detratores, 351 passivos, 148 promotores), calculado com `.round()` do pandas e faixas clássicas.
-- O atraso na entrega (`delivery_delay_days`) pesa mais na nota: correlação de -0,60. Reclamações vêm em seguida (-0,50), depois contatos com atendimento (-0,35). O prazo estimado (`delivery_time_days`) não tem relação com a nota (correlação 0,00).
 - `csat_internal_score` e `repeat_purchase_30d` ficam fora do modelo por risco de vazamento.
 - O projeto trata `complaints_count` como uma métrica que inclui `customer_service_contacts` mais reclamações de outros canais. Essa é uma premissa assumida, não confirmada pelo dicionário de dados.
-- Pricing (valor do pedido, desconto, frete) e perfil do cliente (idade, tempo de casa) não correlacionam com a nota, todos entre -0,04 e 0,04.
+- O teste ANOVA (F = 0,826, p = 0,508) confirma que a região não explica a variação do NPS.
 
 ### 2. Modelagem preditiva
 
-[`notebooks/02_modelagem.ipynb`](notebooks/02_modelagem.ipynb) usa regressão linear (`sm.OLS` e `LinearRegression`) para estimar a nota de NPS.
+[`notebooks/02_modelagem.ipynb`](notebooks/02_modelagem.ipynb) usa regressão linear (`sm.OLS` e `LinearRegression`) para estimar a nota, e regressão logística (`LogisticRegression`) para classificar detrator ou não.
 
-- O primeiro ajuste usa 12 variáveis (todas as não vazadas, exceto `customer_region`). O ajuste reduzido usa 3 variáveis (`delivery_delay_days`, `complaints_count`, `resolution_time_days`). As 3 variáveis sozinhas explicam quase o mesmo que as 12: R² de 0,546 contra 0,550.
-- A separação treino e teste usa 80/20 (`random_state=42`). No teste: MAE 1,340, MSE 2,847, RMSE 1,687, R² 0,550. Os números de treino ficam quase iguais, sem sinal de overfitting.
-- `customer_region` fica fora do modelo, porque o projeto não testou nenhuma codificação de variável categórica.
-- Recomendação: invista primeiro na logística de entrega, já que o atraso tem o maior peso no modelo (coeficiente -0,91). Para confirmar se reduzir o atraso melhora a nota, a empresa precisa de um teste controlado (teste A/B), que esta análise observacional não cobre.
+- O primeiro ajuste da regressão usa 12 variáveis (todas as não vazadas, exceto `customer_region`). O ajuste reduzido usa 3 variáveis (`delivery_delay_days`, `complaints_count`, `resolution_time_days`). As 3 variáveis sozinhas explicam quase o mesmo que as 12: R² de 0,546 contra 0,550.
+- Mesmas 3 variáveis e mesma separação treino/teste (80/20, `random_state=42`) na regressão logística.
+- `customer_region` fica fora de ambos os modelos, porque o projeto não testou nenhuma codificação de variável categórica.
+- O modelo de regressão pode prever notas fora da faixa válida (0 a 10) em cerca de 1% dos casos, uma limitação registrada da regressão linear.
+- Recomendação: invista primeiro na logística de entrega, já que o atraso tem o maior peso nos dois modelos. Para confirmar se reduzir o atraso melhora a nota, a empresa precisa de um teste controlado (teste A/B), que esta análise observacional não cobre.
 
 ## Como reproduzir os resultados
 

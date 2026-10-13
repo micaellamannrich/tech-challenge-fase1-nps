@@ -4,22 +4,83 @@ Projeto da Pós Tech em AI Scientist (FIAP), Tech Challenge da Fase 1.
 
 ## Objetivo do projeto
 
-Este projeto atende um e-commerce que cresceu rápido e passou a processar muito mais pedidos, entregas e atendimentos. O NPS varia entre clientes com indicadores operacionais parecidos, e a empresa não sabe quais fatores operacionais explicam essa variação.
+Identificar quais fatores operacionais influenciam a satisfação do cliente (NPS) num e-commerce, e construir um modelo que estime essa satisfação antes da pesquisa, a partir de dados de pedido, entrega e atendimento.
 
-A empresa coleta o NPS só no fim da jornada de compra, então descobre a insatisfação depois que o problema já aconteceu, sem chance de agir antes. A pergunta central: quais fatores operacionais influenciam a satisfação do cliente, e como a empresa pode agir antes da pesquisa de NPS?
+## Entendimento do negócio
+
+**Qual problema de negócio está sendo resolvido?**
+A empresa cresceu rápido no e-commerce e passou a lidar com muito mais pedidos, entregas e atendimentos. O NPS varia entre clientes com indicadores operacionais parecidos, e a empresa só descobre a insatisfação depois que a jornada termina, sem chance de agir antes. O problema é identificar quais fatores operacionais influenciam a satisfação, para agir antes da pesquisa de NPS.
+
+**Por que o NPS é importante para um e-commerce?**
+É fácil o cliente comprar na concorrência na próxima vez, e um cliente novo custa mais caro que manter um que já comprou. O NPS mostra insatisfação antes que ela vire cancelamento, avaliação pública negativa ou perda do cliente sem a empresa saber o motivo.
+
+**Quais áreas poderiam se beneficiar desses insights?**
+- Logística: sinal mais forte nos dados, atraso na entrega tem o maior peso no modelo (coeficiente -0,91).
+- Atendimento: reclamações e tempo de resolução também pesam (coeficientes -0,55 e -0,14).
+- Pricing e perfil do cliente: testados na EDA (valor do pedido, desconto, frete, idade, tempo de casa, região, parcelamento), nenhuma relação encontrada com a nota.
+
+**Como o NPS impacta recompra, boca a boca e market share?**
+- Recompra: `repeat_purchase_30d` correlaciona 0,57 com o NPS (excluída do modelo por risco de vazamento, mas válida aqui como evidência). Nota baixa anda junto com menos recompra.
+- Boca a boca: detratores tendem a falar mal publicamente, em avaliações e redes sociais, visível para outros clientes antes da compra.
+- Market share: é fácil trocar de loja nesse mercado. Empresas com NPS mais alto retêm mais clientes e crescem por recomendação, com menor custo de aquisição.
+
+**Quais indicadores de mercado poderiam complementar essa análise?**
+- Benchmark de NPS do setor, para saber se -74,1 é ruim mesmo ou comum na indústria.
+- SLA logístico médio de mercado, para comparar com o atraso observado aqui.
+- Taxa de recompra média do setor.
+- Avaliações públicas em marketplaces e share of search, como indicadores de concorrência.
 
 ## Principais resultados
 
-- NPS da empresa: **-74,1** (80% detratores, 14% passivos, 6% promotores).
-- Os três fatores que mais pesam na nota, nesta ordem: **atraso na entrega** (correlação -0,60), **número de reclamações** (-0,50) e **contatos com o atendimento** (-0,35).
-- O tempo total de entrega não muda a nota (correlação 0,00). O que pesa é atrasar em relação ao prometido, não a duração da entrega em si.
-- Ponto de ruptura: a cada dia de atraso, a chance de o pedido ser de um detrator sobe rápido. De 45,1% sem atraso para 83,1% com 2 dias de atraso e 100% a partir de 5 dias.
-- Pricing (valor do pedido, desconto, frete) e perfil do cliente (idade, tempo de casa, região) não têm relação com a nota.
+Calculando a nota com as faixas clássicas (detrator, passivo, promotor), o NPS da empresa é **-74,1**, com 80% dos clientes como detratores, 14% como passivos e só 6% como promotores. A distribuição abaixo mostra por que: a maioria das notas se concentra na parte baixa da escala.
+
+![Distribuição da nota de NPS](reports/figures/distribuicao_nps.png)
+
+Para entender o que explica essa distribuição, a tabela abaixo mostra a correlação de cada fator com a nota. Três variáveis operacionais se destacam, todas negativas:
+
+| Variável | Correlação | Direção |
+|---|---|---|
+| Atraso na entrega (`delivery_delay_days`) | -0,60 | quanto mais atraso, menor a nota |
+| Reclamações (`complaints_count`) | -0,50 | quanto mais reclamações, menor a nota |
+| Contatos com o atendimento (`customer_service_contacts`) | -0,35 | quanto mais contatos, menor a nota |
+| Prazo estimado de entrega (`delivery_time_days`) | 0,00 | não tem relação |
+| Pricing e perfil do cliente | entre -0,04 e 0,04 | não tem relação |
+
+O heatmap confirma o padrão para todas as variáveis numéricas da base de uma vez, e mostra que nenhuma outra combinação de colunas supera essas três em força de relação com o NPS:
+
+![Correlação entre as variáveis numéricas](reports/figures/correlacao_variaveis.png)
+
+Um achado importante está nessa tabela: o tempo total de entrega não muda a nota, mas o atraso em relação ao prometido muda bastante. Ou seja, o que pesa é atrasar em relação ao combinado, não a duração da entrega em si.
+
+Esse efeito do atraso não é gradual, ele se acentua rápido. A cada dia a mais de atraso, a chance de o pedido ser de um cliente detrator sobe de forma acentuada, como mostra o gráfico:
+
+![Percentual de detratores por dia de atraso](reports/figures/pct_detratores_por_atraso.png)
+
+Em números: um pedido sem atraso tem 45,1% de chance de vir de um detrator. Com 2 dias de atraso, já são 83,1%. A partir de 5 dias, 100% dos pedidos são de detratores.
+
+| Dias de atraso | % de detratores |
+|---|---|
+| 0 | 45,1% |
+| 1 | 66,8% |
+| 2 | 83,1% |
+| 3 | 94,1% |
+| 4 | 98,9% |
+| 5 ou mais | 100% |
+
+A partir desses fatores, o projeto testou dois modelos para responder perguntas diferentes de negócio:
 
 | Modelo | Pergunta que responde | Resultado no teste |
 |---|---|---|
 | Regressão linear | Qual a nota exata de NPS? | R² = 0,550, MAE = 1,34 |
 | Regressão logística | Este pedido vira um detrator? | ROC-AUC = 0,882, recall = 0,941 |
+
+O gráfico abaixo compara a nota real com a nota prevista pela regressão linear no conjunto de teste. Os pontos próximos da linha vermelha são acertos, e a dispersão em torno dela é o erro médio de 1,34 ponto já esperado pelo MAE:
+
+![Nota real x nota prevista](reports/figures/real_vs_previsto.png)
+
+Já a regressão logística é avaliada por quão bem ela separa detratores de não detratores em diferentes pontos de corte, o que a curva ROC mostra visualmente. Quanto mais a curva azul sobe antes de ir para a direita, melhor a separação, a linha cinza é o que um modelo aleatório faria:
+
+![Curva ROC](reports/figures/curva_roc.png)
 
 ## Definição da target
 
@@ -48,7 +109,7 @@ O dicionário completo de colunas está em [`docs/material-curso`](docs/material
 
 ## Metodologia utilizada
 
-O projeto segue o fluxo CRISP-DM, conforme o roteiro das aulas da Fase 1.
+O projeto segue o fluxo CRISP-DM (Cross-Industry Standard Process for Data Mining).
 
 ### 1. Exploração dos dados
 
@@ -62,7 +123,7 @@ Decisões que sustentam os resultados acima:
 
 ### 2. Modelagem preditiva
 
-[`notebooks/02_modelagem.ipynb`](notebooks/02_modelagem.ipynb) usa regressão linear (`sm.OLS` e `LinearRegression`) para estimar a nota, e regressão logística (`LogisticRegression`) para classificar detrator ou não.
+[`notebooks/02_modelagem.ipynb`](notebooks/02_modelagem.ipynb) usa regressão linear (`sm.OLS` e `LinearRegression`) para estimar a nota, e regressão logística (`LogisticRegression`) para classificar detrator ou não. Os dois modelos têm coeficientes diretamente interpretáveis, o que facilita explicar o resultado para um gestor sem formação técnica.
 
 - O primeiro ajuste da regressão usa 12 variáveis (todas as não vazadas, exceto `customer_region`). O ajuste reduzido usa 3 variáveis (`delivery_delay_days`, `complaints_count`, `resolution_time_days`). As 3 variáveis sozinhas explicam quase o mesmo que as 12: R² de 0,546 contra 0,550.
 - Mesmas 3 variáveis e mesma separação treino/teste (80/20, `random_state=42`) na regressão logística.

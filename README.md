@@ -58,11 +58,6 @@ Principais decisões e achados:
 - `customer_region` fica fora do modelo, porque o projeto não testou nenhuma codificação de variável categórica.
 - Recomendação: invista primeiro na logística de entrega, já que o atraso tem o maior peso no modelo (coeficiente -0,91). Para confirmar se reduzir o atraso melhora a nota, a empresa precisa de um teste controlado (teste A/B), que esta análise observacional não cobre.
 
-## Próximos passos
-
-- Reflexão completa de negócio (item 1 do enunciado).
-- Slides e vídeo executivo.
-
 ## Como reproduzir os resultados
 
 ```bash
